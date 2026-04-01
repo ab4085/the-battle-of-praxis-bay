@@ -3,9 +3,36 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <stdbool.h>
+#include <string.h>
 
 #define WINDOW_WIDTH 1280
 #define WINDOW_HEIGHT 720
+#define BORDER_WIDTH 10
+
+#define LEFT_RECT_W 450
+#define LEFT_RECT_H WINDOW_HEIGHT - (BORDER_WIDTH * 2)
+#define LEFT_RECT_X BORDER_WIDTH
+#define LEFT_RECT_Y BORDER_WIDTH
+
+#define RIGHT_RECT_W WINDOW_WIDTH - (LEFT_RECT_W + (BORDER_WIDTH * 3))
+#define RIGHT_RECT_H WINDOW_HEIGHT - (BORDER_WIDTH * 2)
+#define RIGHT_RECT_X WINDOW_WIDTH - (RIGHT_RECT_W + BORDER_WIDTH)
+#define RIGHT_RECT_Y BORDER_WIDTH
+
+#define IMG_RECT_W LEFT_RECT_W - (BORDER_WIDTH * 4)
+#define IMG_RECT_H IMG_RECT_W
+#define IMG_RECT_X BORDER_WIDTH * 3
+#define IMG_RECT_Y (WINDOW_HEIGHT / 2) - (IMG_RECT_H / 2)
+
+#define CHOICE_RECT_W RIGHT_RECT_W - (BORDER_WIDTH * 2)
+#define CHOICE_RECT_H 200
+#define CHOICE_RECT_X RIGHT_RECT_X + BORDER_WIDTH
+#define CHOICE_RECT_Y
+
+#define TXT_RECT_W RIGHT_RECT_W - (BORDER_WIDTH * 2)
+#define TXT_RECT_H RIGHT_RECT_H - (CHOICE_RECT_H + (BORDER_WIDTH * 3))
+#define TXT_RECT_X RIGHT_RECT_X + BORDER_WIDTH
+#define TXT_RECT_Y RIGHT_RECT_Y + BORDER_WIDTH
 
 #define PRINT_FPS true
 #define LIMIT_FPS true
@@ -173,20 +200,30 @@ void Update(void *appstate)
 
 void Render(void *appstate)
 {
-	struct State* state = (struct State*) appstate;
+	State* state = (State*) appstate;
 
 	SDL_RenderClear(state->renderer);
 
 	// draw rectangles
 	// img rect first
 	SDL_FRect imgRect = {10.0f, 10.0f, 450.0f, 700.0f};
-	SDL_SetRenderDrawColor(state->renderer, 0x00, 0x00, 0xFF, 0xFF);
+	SDL_SetRenderDrawColor(state->renderer, 0xFF, 0xFF, 0xFF, 0xFF);
 	SDL_RenderRect(state->renderer, &imgRect);
 
 	// viewing rect second
-	SDL_FRect txtIntRect = {470.0f, 10.0f, 740.0f, 700.0f};
-	SDL_SetRenderDrawColor(state->renderer, 0xFF, 0x00, 0x00, 0xFF);
+	SDL_FRect txtIntRect = {470.0f, 10.0f, 800.0f, 700.0f};
+	SDL_SetRenderDrawColor(state->renderer, 0xFF, 0xFF, 0xFF, 0xFF);
 	SDL_RenderRect(state->renderer, &txtIntRect);
+
+	// smaller img rect third
+	SDL_FRect imgRectSmol = {35.0f, 160.0f, 400.0f, 400.0f};
+	SDL_SetRenderDrawColor(state->renderer, 0xFF, 0xFF, 0xFF, 0xFF);
+	SDL_RenderRect(state->renderer, &imgRectSmol);
+
+	// choice rect fourth
+	SDL_FRect optionsRect = {480.0f, 500.0f, 780.0f, 200.0f};
+	SDL_SetRenderDrawColor(state->renderer, 0xFF, 0xFF, 0xFF, 0xFF);
+	SDL_RenderRect(state->renderer, &optionsRect);
 
 	SDL_RenderPresent(state->renderer);
 
