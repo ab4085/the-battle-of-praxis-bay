@@ -1,2 +1,2 @@
 # the-battle-of-praxis-bay
-Text-based choose-your-own-adventure game.
+Text-based choose-your-own-adventure game created using SDL3.
