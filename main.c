@@ -1,7 +1,15 @@
+/*
+* Author: Abdullah Bouteldja
+* Made using the fantastic SDL3 library under the CC BY 4.0 license
+* Also using the separate SDL3_ttf library for text handling under the same license
+*/
+
 #define SDL_MAIN_USE_CALLBACKS 1
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
+#include <SDL3_ttf/SDL_ttf.h>
+
 #include <stdbool.h>
 #include <string.h>
 
@@ -10,29 +18,29 @@
 #define BORDER_WIDTH 10
 
 #define LEFT_RECT_W 450
-#define LEFT_RECT_H WINDOW_HEIGHT - (BORDER_WIDTH * 2)
+#define LEFT_RECT_H (WINDOW_HEIGHT - (BORDER_WIDTH * 2))
 #define LEFT_RECT_X BORDER_WIDTH
 #define LEFT_RECT_Y BORDER_WIDTH
 
-#define RIGHT_RECT_W WINDOW_WIDTH - (LEFT_RECT_W + (BORDER_WIDTH * 3))
-#define RIGHT_RECT_H WINDOW_HEIGHT - (BORDER_WIDTH * 2)
-#define RIGHT_RECT_X WINDOW_WIDTH - (RIGHT_RECT_W + BORDER_WIDTH)
+#define RIGHT_RECT_W (WINDOW_WIDTH - (LEFT_RECT_W + (BORDER_WIDTH * 3)))
+#define RIGHT_RECT_H (WINDOW_HEIGHT - (BORDER_WIDTH * 2))
+#define RIGHT_RECT_X (WINDOW_WIDTH - (RIGHT_RECT_W + BORDER_WIDTH))
 #define RIGHT_RECT_Y BORDER_WIDTH
 
-#define IMG_RECT_W LEFT_RECT_W - (BORDER_WIDTH * 4)
+#define IMG_RECT_W (LEFT_RECT_W - (BORDER_WIDTH * 4))
 #define IMG_RECT_H IMG_RECT_W
-#define IMG_RECT_X BORDER_WIDTH * 3
+#define IMG_RECT_X (BORDER_WIDTH * 3)
 #define IMG_RECT_Y (WINDOW_HEIGHT / 2) - (IMG_RECT_H / 2)
 
-#define CHOICE_RECT_W RIGHT_RECT_W - (BORDER_WIDTH * 2)
+#define CHOICE_RECT_W (RIGHT_RECT_W - (BORDER_WIDTH * 2))
 #define CHOICE_RECT_H 200
-#define CHOICE_RECT_X RIGHT_RECT_X + BORDER_WIDTH
-#define CHOICE_RECT_Y
+#define CHOICE_RECT_X (RIGHT_RECT_X + BORDER_WIDTH)
+#define CHOICE_RECT_Y (WINDOW_HEIGHT - (CHOICE_RECT_H + BORDER_WIDTH * 2))
 
-#define TXT_RECT_W RIGHT_RECT_W - (BORDER_WIDTH * 2)
-#define TXT_RECT_H RIGHT_RECT_H - (CHOICE_RECT_H + (BORDER_WIDTH * 3))
-#define TXT_RECT_X RIGHT_RECT_X + BORDER_WIDTH
-#define TXT_RECT_Y RIGHT_RECT_Y + BORDER_WIDTH
+#define TXT_RECT_W (RIGHT_RECT_W - (BORDER_WIDTH * 2))
+#define TXT_RECT_H (RIGHT_RECT_H - (CHOICE_RECT_H + (BORDER_WIDTH * 3)))
+#define TXT_RECT_X (RIGHT_RECT_X + BORDER_WIDTH)
+#define TXT_RECT_Y (RIGHT_RECT_Y + BORDER_WIDTH)
 
 #define PRINT_FPS true
 #define LIMIT_FPS true
@@ -41,70 +49,226 @@
 
 #define No_PARTICLES WINDOW_WIDTH
 
+// ################################################################################################
+// ENUMS & STRUCTS
+// ################################################################################################
+
 // ############################################################################
-// STRUCTS & ENUMS
+// GAME LOGIC ENUMS & STRUCTS
+// ############################################################################
+
+typedef enum
+{
+	CAP_1_OPENING,
+	CAP_2_ATTACK,
+	CAP_3_CHOOSING_FLAG,
+	CAP_3_CHOOSING_DEFENCE,
+	END_CAPTAIN,
+	SMITH_1_CHOOSING_CANNONS,
+	SMITH_2_CHOOSING_FIRE_REPAIRS,
+	SURGEON_1_WHO_WHERE_TREAT,
+	END_SURGEON,
+	CAP_4_CHOOSING_DUEL,
+	CAP_5_DUEL,
+	CAP_6_END,
+	CONCLUSION
+}
+StoryState;
+
+typedef enum
+{
+	WINNING,
+	LOSING
+}
+BattleState;
+
+typedef enum
+{
+	READING,
+	CHOOSING2,
+	CHOOSING3
+}
+PlayerState;
+
+typedef enum
+{
+	BLACK,
+	RED,
+	FALSE
+}
+Flag;
+
+typedef enum
+{
+	BOARDING,
+	CANNONS,
+	FIFTYFIFTY
+}
+BattleStrategy;
+
+typedef enum
+{
+	RELOCATE,
+	DIRECT_RELOCATION,
+	LEAVE_IT
+}
+PowderRelocation;
+
+typedef enum
+{
+	PUMPS,
+	IGNORE
+}
+PumpRepair;
+
+typedef enum
+{
+	DOWN,
+	STRAIGHT,
+	UP
+}
+CannonAngle;
+
+typedef enum
+{
+	TREAT,
+	LEAVE_HIM_TO_DIE_LIKE_SOME_SORT_OF_MONSTER
+}
+TreatQuartermaster;
+
+typedef enum
+{
+	ABOVE,
+	BELOW
+}
+SurgeonPosition;
+
+typedef enum
+{
+	SWORD,
+	GUN,
+	ESCAPE
+}
+Duel;
+
+typedef struct
+{
+	Flag flag;
+	BattleStrategy battleStrategy;
+	PowderRelocation powderRelocation;
+	PumpRepair pumpRepair;
+	CannonAngle cannonAngle;
+	TreatQuartermaster treatQM;
+	SurgeonPosition surgeonPosition;
+	Duel duel;
+}
+Choice;
+
+typedef struct
+{
+	Choice choice;
+	StoryState sState;
+	BattleState bState;
+	PlayerState pState;
+
+}
+GameState;
+
+// ############################################################################
+// GAME ENGINE ENUMS & STRUCTS
+// ############################################################################
+
+typedef enum
+{
+	LEFT,
+	RIGHT,
+	IMG,
+	CHOICE,
+	TXT
+}
+RectType;
+
+typedef struct
+{
+	Uint64 lastFrameTick;
+	float fps;
+	float frameIntervalMS;
+}
+FrameParameters;
+
+// ############################################################################
+// MAIN STATE STRUCT
 // ############################################################################
 
 typedef struct
 {
 	SDL_Window* window;
 	SDL_Renderer* renderer;
-	// SDL_Surface* surface;
 	SDL_Texture* texture;
 
-	Uint64 lastFrameTick;
-	Uint64 lastLoopTick;
-	Uint64 frame;
-	float fps;
-	float frameIntervalMS;
-	
-	SDL_FPoint points[No_PARTICLES];
+	FrameParameters frame;
+
+	GameState gState;
 }
 State;
+
+
+// ################################################################################################
+// GAME LOGIC
+// ################################################################################################
+
+
+
+// ################################################################################################
+// GAME ENGINE FUNCTIONS
+// ################################################################################################
 
 // ############################################################################
 // INPUT
 // ############################################################################
 
-// handle inputs (mouse and keyboard only for now)
-SDL_AppResult Input(SDL_Event *event)
+// handle inputs (mouse left click only)
+SDL_AppResult input(SDL_Event *event)
 {
 	if (event->type == SDL_EVENT_QUIT)// quit
 	{
 		return SDL_APP_SUCCESS;
 	}
-	else if (event->type == SDL_EVENT_KEY_DOWN)// key press
+	else 
 	{
-		SDL_Log("key press detected: %d", event->key.key);
-	}
-	else if(event->type == SDL_EVENT_MOUSE_MOTION)// mouse movement
-	{
-		/*
-		SDL_Log("Abs: x: %f, y: %f", event->motion.x, event->motion.y);
-		SDL_Log("Rel: x: %f, y: %f", event->motion.xrel, event->motion.yrel);
-		*/
-	}
-	else if(event->type == SDL_EVENT_MOUSE_BUTTON_DOWN)// mouse click
-	{
-		switch (event->button.button)
+		if (1/* currently accepting inputs*/)
 		{
-			case SDL_BUTTON_LEFT:
-				SDL_Log("left mouse button clicked");
-				break;
-				
-			case SDL_BUTTON_RIGHT:
-				SDL_Log("right mouse button clicked");
-				break;
+			if(event->type == SDL_EVENT_MOUSE_BUTTON_DOWN
+				&& event->button.button == SDL_BUTTON_LEFT)// left mouse click detected
+			{
+				if (1/* accepting choice of two inputs */)
+				{
+					if (1/* mouse is in correct position */)
+					{
+						 
+					}
+					else if (1/* mouse is in correct position*/)
+					{
 
-			case SDL_BUTTON_MIDDLE:
-				SDL_Log("middle mouse button clicked");
-				break;
+					}
+				}
+				else if (1/* acccepting choice of three inputs */)
+				{
+					if (1/* mouse is in correct position */)
+					{
+						// TODO: accept 
+					}
+					else if (1/* mouse is in correct position*/)
+					{
 
-			default:
-				SDL_Log("mystery mouse button clicked");
+					}
+					else if (1/* mouse is in correct position*/)
+					{
+
+					}
+				}
+			}
 		}
-		
-		SDL_Log("%d mouse button depress(es) detected", event->button.clicks);
 	}
 
 	return SDL_APP_CONTINUE;
@@ -114,49 +278,49 @@ SDL_AppResult Input(SDL_Event *event)
 // FRAME CALCULATIONS & MANAGEMENT
 // ############################################################################
 
-float GetFPS(void *appstate)
+float getFPS(void *appstate)
 {
 	State* state = (State*) appstate;
 
-	return (state->fps);
+	return (state->frame.fps);
 }
 
-Uint64 GetMSSinceLastFrame(void *appstate)
+Uint64 getMSSinceLastFrame(void *appstate)
 {
 	State* state = (State*) appstate;
 	
-	return (SDL_GetTicks() - state->lastFrameTick);
+	return (SDL_GetTicks() - state->frame.lastFrameTick);
 }
 
-void CalculateFPS(void *appstate)
+void calculateFPS(void *appstate)
 {
 	State* state = (State*) appstate;
 
 	// get time since last frame
-	float f = (float) (GetMSSinceLastFrame(appstate));
+	float f = (float) (getMSSinceLastFrame(appstate));
 
 	// convert to seconds then invert to get fps
 	f = f / 1000;
 	f = 1 / f;
 
 	// record fps
-	state->fps = f;
+	state->frame.fps = f;
 
 	return;
 }
 
 // reset parameters used for frame calculations
-void ResetFrameParameters(void *appstate)
+void resetFrameParameters(void *appstate)
 {
 	State* state = (State*) appstate;
 
-	state->lastFrameTick = SDL_GetTicks();
+	state->frame.lastFrameTick = SDL_GetTicks();
 
 	return;
 }
 
 // check whether a new frame should be rendered as according to the FPS limit
-bool AdvanceFrame(void *appstate)
+bool advanceFrame(void *appstate)
 {
 	State* state = (State*) appstate;
 	
@@ -164,66 +328,117 @@ bool AdvanceFrame(void *appstate)
 	
 	if (LIMIT_FPS)
 	{
-		(GetMSSinceLastFrame(appstate) > state->frameIntervalMS) ? (advance = true) : (advance = false);
+		(getMSSinceLastFrame(appstate) > state->frame.frameIntervalMS) ?
+			(advance = true) : (advance = false);
 	}
 
 	if (advance)
 	{		
-		CalculateFPS(appstate);
-		ResetFrameParameters(appstate);
+		calculateFPS(appstate);
+		resetFrameParameters(appstate);
 	}
 
 	return advance;
 }
 
 // ############################################################################
-// UPDATE AND RENDER
+// UPDATE & RENDER FUNCTIONS
 // ############################################################################
 
-void Update(void *appstate)
+void updateTexture(void *appstate)
+{
+
+
+	return;
+}
+
+SDL_FRect generateFRect(RectType rt)
+{
+	SDL_FRect rect;
+	
+	switch (rt)
+	{
+		case LEFT:
+			rect.x = LEFT_RECT_X;
+			rect.y = LEFT_RECT_Y;
+			rect.w = LEFT_RECT_W;
+			rect.h = LEFT_RECT_H;
+			break;
+
+		case RIGHT:
+			rect.x = RIGHT_RECT_X;
+			rect.y = RIGHT_RECT_Y;
+			rect.w = RIGHT_RECT_W;
+			rect.h = RIGHT_RECT_H;
+			break;
+
+		case IMG:
+			rect.x = IMG_RECT_X;
+			rect.y = IMG_RECT_Y;
+			rect.w = IMG_RECT_W;
+			rect.h = IMG_RECT_H;
+			break;
+
+		case CHOICE:
+			rect.x = CHOICE_RECT_X;
+			rect.y = CHOICE_RECT_Y;
+			rect.w = CHOICE_RECT_W;
+			rect.h = CHOICE_RECT_H;
+			break;
+
+		case TXT:
+			rect.x = TXT_RECT_X;
+			rect.y = TXT_RECT_Y;
+			rect.w = TXT_RECT_W;
+			rect.h = TXT_RECT_H;
+			break;
+
+		default:
+	}
+
+	return rect;
+}
+
+void update(void *appstate)
 {
 	State* state = (State*) appstate;
-
-	for (int i = 0; i < No_PARTICLES; i++)
-	{
-		// state->points[i].x += SDL_rand(10);
-		state->points[i].y += SDL_rand(5);
-
-		if (state->points[i].y >= WINDOW_HEIGHT)
-		{
-			state->points[i].y = (float) (-5);
-		}	
-	}	
 	
 	return;
 }
 
-void Render(void *appstate)
+void render(void *appstate)
 {
 	State* state = (State*) appstate;
+	SDL_FRect rect;
 
+	SDL_SetRenderDrawColor(state->renderer, 0x00, 0x00, 0x00, SDL_ALPHA_OPAQUE);
 	SDL_RenderClear(state->renderer);
 
 	// draw rectangles
-	// img rect first
-	SDL_FRect imgRect = {10.0f, 10.0f, 450.0f, 700.0f};
-	SDL_SetRenderDrawColor(state->renderer, 0xFF, 0xFF, 0xFF, 0xFF);
-	SDL_RenderRect(state->renderer, &imgRect);
+	// left rect first
+	SDL_SetRenderDrawColor(state->renderer, 0xFF, 0xFF, 0xFF, SDL_ALPHA_OPAQUE);
+	rect = generateFRect(LEFT);
+	SDL_RenderRect(state->renderer, &rect);
 
-	// viewing rect second
-	SDL_FRect txtIntRect = {470.0f, 10.0f, 800.0f, 700.0f};
-	SDL_SetRenderDrawColor(state->renderer, 0xFF, 0xFF, 0xFF, 0xFF);
-	SDL_RenderRect(state->renderer, &txtIntRect);
+	// right rect second
+	SDL_SetRenderDrawColor(state->renderer, 0xFF, 0xFF, 0xFF, SDL_ALPHA_OPAQUE);
+	rect = generateFRect(RIGHT);
+	SDL_RenderRect(state->renderer, &rect);
 
-	// smaller img rect third
-	SDL_FRect imgRectSmol = {35.0f, 160.0f, 400.0f, 400.0f};
-	SDL_SetRenderDrawColor(state->renderer, 0xFF, 0xFF, 0xFF, 0xFF);
-	SDL_RenderRect(state->renderer, &imgRectSmol);
+	// img rect third
+	SDL_SetRenderDrawColor(state->renderer, 0xFF, 0xFF, 0xFF, SDL_ALPHA_OPAQUE);
+	rect = generateFRect(IMG);
+	SDL_RenderRect(state->renderer, &rect);
 
 	// choice rect fourth
-	SDL_FRect optionsRect = {480.0f, 500.0f, 780.0f, 200.0f};
-	SDL_SetRenderDrawColor(state->renderer, 0xFF, 0xFF, 0xFF, 0xFF);
-	SDL_RenderRect(state->renderer, &optionsRect);
+	SDL_SetRenderDrawColor(state->renderer, 0xFF, 0xFF, 0xFF, SDL_ALPHA_OPAQUE);
+	rect = generateFRect(CHOICE);
+	SDL_RenderRect(state->renderer, &rect);
+
+	// text rect fifth
+	SDL_SetRenderDrawColor(state->renderer, 0xFF, 0xFF, 0xFF, SDL_ALPHA_OPAQUE);
+	rect = generateFRect(TXT);
+	SDL_RenderRect(state->renderer, &rect);
 
 	SDL_RenderPresent(state->renderer);
 
@@ -231,12 +446,12 @@ void Render(void *appstate)
 
 }
 
-void UpdateAndRender(void *appstate)
+void updateAndRender(void *appstate)
 {
-	if (AdvanceFrame(appstate))
+	if (advanceFrame(appstate))
 	{
-		Update(appstate);
-		Render(appstate);
+		update(appstate);
+		render(appstate);
 	}
 
 	return;
@@ -246,47 +461,50 @@ void UpdateAndRender(void *appstate)
 // INITIALISATION
 // ############################################################################
 
-SDL_AppResult InitStructs(State *state)
+bool initFrameParameters(State* state)
 {
 	// set struct vars to arbitrary values
 	// most of these don't really matter, so magic it is
-	state->lastFrameTick = 1;
-	state->lastLoopTick = 1;
-	state->frame = 1;
-	state->fps = 1.0f;
+	state->frame.lastFrameTick = 1;
+	state->frame.fps = 1.0f;
+	state->frame.frameIntervalMS = (1 / ((float) FPS_LIMIT)) * 1000;
 
-	state->frameIntervalMS = (1 / ((float) FPS_LIMIT)) * 1000;
-
-	// put all particles above the window out of view so they can fall into view
-	for (int i = 0; i < No_PARTICLES; i++)
-	{
-		SDL_FPoint p = {((float) i), ((float) (-10))};
-		state->points[i] = p;
-	}
-
-	return SDL_APP_CONTINUE;
+	return true;
 }
 
-SDL_AppResult InitVideo(State *state)
+bool initStructs(State *state)
 {
+	SDL_Log("Initialising structs...");
+
+	initFrameParameters(state);
+
+	SDL_Log("Struct initialisation complete");
+
+	return true;
+}
+
+bool initVideo(State *state)
+{
+	SDL_Log("Initialising video...");
+	
 	// initialise video
 	if (!SDL_Init(SDL_INIT_VIDEO))
 	{
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
 			"Video intialisation failed: %s", SDL_GetError());
 
-		return SDL_APP_FAILURE;
+		return false;
 	}
 	
 	// create window and renderer
 	// the 0 is in place of the window flags because none are being used
-	if (!SDL_CreateWindowAndRenderer("Hello SDL", WINDOW_WIDTH, WINDOW_HEIGHT, 0,
+	if (!SDL_CreateWindowAndRenderer("get windowed", WINDOW_WIDTH, WINDOW_HEIGHT, 0,
 		&(state->window), &(state->renderer)))
 	{
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
 			"Window/renderer creation failed: %s", SDL_GetError());
 
-		return SDL_APP_FAILURE;
+		return false;
 	}
 
 	SDL_Log("Available renderer drivers:");
@@ -294,21 +512,18 @@ SDL_AppResult InitVideo(State *state)
 		    SDL_Log("%d. %s", i + 1, SDL_GetRenderDriver(i));
 	}
 
-	// create texture
-	SDL_Surface* surf = SDL_LoadBMP("./IMG/image.bmp");
-	state->texture = SDL_CreateTextureFromSurface(state->renderer, surf);
-	SDL_DestroySurface(surf);
-
-	if (state->texture == NULL)
+	// set window icon
+	SDL_Surface* icon = SDL_LoadBMP("./img/image.bmp");
+	if (!SDL_SetWindowIcon(state->window, icon))
 	{
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-			"Texture creation failed: %s", SDL_GetError());
-		return SDL_APP_FAILURE;
+			"Error setting window icon: %s", SDL_GetError());
+		return false;
 	}
 
-	SDL_Log("Video intialisation complete.");
+	SDL_Log("Video initialisation complete");
 
-	return SDL_APP_CONTINUE;
+	return true;
 }
 
 // ############################################################################
@@ -321,25 +536,31 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 
 	SDL_AppResult result;
 	
-	result = InitVideo(&state);
-	result = InitStructs(&state);
+	if (!initVideo(&state))
+	{
+		return SDL_APP_FAILURE;
+	}
+	else if (!initStructs(&state))
+	{
+		return SDL_APP_FAILURE;
+	}
 
 	*appstate = &state;
 
-	return result;
+	return SDL_APP_CONTINUE;
 }
 
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 {
-	return (Input(event));
+	return (input(event));
 }
 
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
 	State* state = (State*) appstate;
 	
-	Input(appstate);
-	UpdateAndRender(appstate);
+	input(appstate);
+	updateAndRender(appstate);
 
 	return SDL_APP_CONTINUE;
 }
