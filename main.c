@@ -14,13 +14,14 @@
 #include <stdbool.h>
 #include <string.h>
 
-#define WINDOW_WIDTH 1366
-#define WINDOW_HEIGHT 768
+#define WINDOW_WIDTH 1280
+#define WINDOW_HEIGHT 720
 #define BORDER_WIDTH 10
 
 #define FILE_PATH_MAX_LENGTH 40
 #define FILE_NAME_MAX_LENGTH 10
 
+#define No_CHOICES_MAX 6
 #define No_CREDITS_FILES 6
 
 #define TXT_START_FILE_NAME "/a.txt"
@@ -152,12 +153,37 @@
 #define CREDITS_TXT_START_RECT_X BORDER_WIDTH
 #define CREDITS_TXT_RECT_Y BORDER_WIDTH
 
+// button dimensions
+#define CREDITS_BUTTON_W 75
+#define CREDITS_BUTTON_H 30
 
+#define CHOICE_1OF2_BUTTON_W ((CHOICE_RECT_W / 2) - (BORDER_WIDTH * 2))
+#define CHOICE_1OF2_BUTTON_H (CHOICE_RECT_H - (BORDER_WIDTH * 2))
+#define CHOICE_1OF2_BUTTON_X (CHOICE_RECT_X + BORDER_WIDTH)
+#define CHOICE_1OF2_BUTTON_Y (CHOICE_RECT_Y + BORDER_WIDTH)
+
+#define CHOICE_2OF2_BUTTON_W CHOICE_1OF2_BUTTON_W
+#define CHOICE_2OF2_BUTTON_H CHOICE_1OF2_BUTTON_H
+#define CHOICE_2OF2_BUTTON_X (CHOICE_1OF2_BUTTON_X + CHOICE_1OF2_BUTTON_W + (BORDER_WIDTH * 2))
+#define CHOICE_2OF2_BUTTON_Y CHOICE_1OF2_BUTTON_Y
+
+#define CHOICE_1OF3_BUTTON_W ((CHOICE_RECT_W / 3) - (BORDER_WIDTH * 2))
+#define CHOICE_1OF3_BUTTON_H (CHOICE_RECT_H - (BORDER_WIDTH * 2))
+#define CHOICE_1OF3_BUTTON_X (CHOICE_RECT_X + BORDER_WIDTH)
+#define CHOICE_1OF3_BUTTON_Y (CHOICE_RECT_Y + BORDER_WIDTH)
+
+#define CHOICE_2OF3_BUTTON_W CHOICE_1OF3_BUTTON_W
+#define CHOICE_2OF3_BUTTON_H CHOICE_1OF3_BUTTON_H
+#define CHOICE_2OF3_BUTTON_X (CHOICE_1OF3_BUTTON_X + CHOICE_1OF3_BUTTON_W + (BORDER_WIDTH * 2))
+#define CHOICE_2OF3_BUTTON_Y CHOICE_1OF3_BUTTON_Y
+
+#define CHOICE_3OF3_BUTTON_W CHOICE_1OF3_BUTTON_W
+#define CHOICE_3OF3_BUTTON_H CHOICE_1OF3_BUTTON_H
+#define CHOICE_3OF3_BUTTON_X (CHOICE_2OF3_BUTTON_X + CHOICE_1OF3_BUTTON_W + (BORDER_WIDTH * 2))
+#define CHOICE_3OF3_BUTTON_Y CHOICE_1OF3_BUTTON_Y
 
 #define LIMIT_FPS true
 #define FPS_LIMIT 60
-
-#define No_PARTICLES WINDOW_WIDTH
 
 // ################################################################################################
 // ENUMS & STRUCTS
@@ -167,8 +193,19 @@
 // GAME LOGIC ENUMS & STRUCTS
 // ############################################################################
 
+typedef enum
+{
+	S,
+	A,
+	B,
+	C,
+	D,
+	F
+}
+Ranking;
+
 // ########################################################
-// GAME STATE STRUCTS
+// GAME STATE ENUMS
 // ########################################################
 
 typedef enum
@@ -188,7 +225,8 @@ typedef enum
 	CAP_6_VICTORY_PART_1,
 	CAP_6_VICTORY_PART_2,
 	CONCLUSION_PART_1,
-	CONCULSION_PART_2
+	CONCLUSION_PART_2,
+	RANKING
 }
 StoryState;
 
@@ -206,6 +244,16 @@ typedef enum
 	CHOOSING3
 }
 PlayerState;
+
+typedef enum
+{
+	START_MENU,
+	PLAYING,
+	CREDITS,
+	DEATH_SCREEN,
+	RANK_SCREEN
+}
+ViewState;
 
 // ########################################################
 // CHOICE ENUMS
@@ -285,22 +333,6 @@ typedef struct
 }
 Choice;
 
-typedef enum
-{
-	STANDARD,
-	CHOOSE
-}
-TextType;
-
-typedef enum
-{
-	START_MENU,
-	PLAYING,
-	CREDITS,
-	DEATH_SCREEN
-}
-ViewState;
-
 // to hold current story text
 typedef struct
 {
@@ -318,6 +350,7 @@ typedef struct
 	BattleState bState;
 	PlayerState pState;
 	ViewState vState;
+	Ranking rank;
 
 	Text txt;
 
@@ -334,10 +367,33 @@ GameState;
 
 typedef enum
 {
+	CREDITS_BUTTON,
+	CHOICE_1_OF_2,
+	CHOICE_2_OF_2,
+	CHOICE_1_OF_3,
+	CHOICE_2_OF_3,
+	CHOICE_3_OF_3
+}
+Range;
+
+typedef enum
+{
+	STANDARD,
+	CHOOSE
+}
+TextType;
+
+typedef enum
+{
 	LEFT,
 	RIGHT,
 	IMG,
 	CHOICE,
+	CHOICE1OF2,
+	CHOICE2OF2,
+	CHOICE1OF3,
+	CHOICE2OF3,
+	CHOICE3OF3,
 	PLAYING_TXT,
 	START_TXT,
 	CREDITS_TXT
@@ -361,7 +417,7 @@ typedef struct
 	SDL_Window* window;
 	SDL_Renderer* renderer;
 	SDL_Texture* imgTexture;
-	SDL_Texture* txtTexture[10];
+	SDL_Texture* txtTexture[2][10];// one for story text, one for choice text
 	SDL_Surface* txtSurface;
 
 	TTF_Font* font;
@@ -380,6 +436,7 @@ void getThirdLevelTxtFolder(void *appstate, char* fileName)
 {
 	State* state = (State*) appstate;
 
+	// all you need to know is that the correct directory is appened by this mess somehow
 	switch (state->gState.sState)
 	{
 		case CAP_1_OPENING:
@@ -542,7 +599,7 @@ void getThirdLevelTxtFolder(void *appstate, char* fileName)
 
 			break;
 
-		case CONCULSION_PART_2:
+		case CONCLUSION_PART_2:
 			if (state->gState.choice.pumpRepair == IGNORE)
 			{
 				strcat(fileName, TXT_END_SANK_PROTO_LOC);
@@ -599,7 +656,7 @@ void getSecondLevelTxtFolder(void *appstate, char* fileName)
 			break;
 
 		case CONCLUSION_PART_1:
-		case CONCULSION_PART_2:
+		case CONCLUSION_PART_2:
 			strcat(fileName, TXT_END_LOC);
 			break;
 
@@ -676,12 +733,23 @@ void readTextFromFiles(void *appstate, TextType type)
 		if ((f = fopen(filePath, "r")) == NULL)
 		{
 			fileFound = false;
+			break;
+		}
+
+		// reset destination
+		if (type == STANDARD)
+		{
+			strcpy(state->gState.txt.currentText[state->gState.txt.paragraphs], "");
+		}
+		else if (type == CHOOSE)
+		{
+			strcpy(state->gState.txt.choiceText[count], "");
 		}
 
 		// read each word of file and add to struct
 		words = 0;
 		while ((fscanf(f, "%s", currentWord)) == 1)
-		{
+		{			
 			if (type == STANDARD)
 			{
 				strcat(state->gState.txt.currentText[state->gState.txt.paragraphs], currentWord);
@@ -708,8 +776,6 @@ void readTextFromFiles(void *appstate, TextType type)
 		}
 
 		fclose(f);
-
-		SDL_Log("current file: %s", filePath);
 
 		currentFile[1]++;// goes from "/a.txt" to "/b.txt" or whatever is next
 	}
@@ -800,7 +866,7 @@ void loadImgFromFiles(void *appstate)
 				img = SDL_LoadBMP(IMG_12_BODIES_LOC);
 				break;
 
-			case CONCULSION_PART_2:
+			case CONCLUSION_PART_2:
 				// if a ship is sinking, one image
 				// if not, the other
 				if (state->gState.choice.cannonAngle == DOWN
@@ -825,536 +891,6 @@ void loadImgFromFiles(void *appstate)
 
 	return;
 }
-
-// ################################################################################################
-// GAME ENGINE FUNCTIONS
-// ################################################################################################
-
-// ############################################################################
-// INPUT
-// ############################################################################
-
-// handle inputs (mouse left click only)
-SDL_AppResult input(void *appstate, SDL_Event *event)
-{
-	State* state = (State*) appstate;
-	
-	if (event->type == SDL_EVENT_QUIT)// quit
-	{
-		return SDL_APP_SUCCESS;
-	}
-	else 
-	{
-		if (s)
-		{
-			if(event->type == SDL_EVENT_MOUSE_BUTTON_DOWN
-				&& event->button.button == SDL_BUTTON_LEFT)// left mouse click detected
-			{
-				if (1/* accepting choice of two inputs */)
-				{
-					if (1/* mouse is in correct position */)
-					{
-						 
-					}
-					else if (1/* mouse is in correct position*/)
-					{
-
-					}
-				}
-				else if (1/* acccepting choice of three inputs */)
-				{
-					if (1/* mouse is in correct position */)
-					{
-						// TODO: accept 
-					}
-					else if (1/* mouse is in correct position*/)
-					{
-
-					}
-					else if (1/* mouse is in correct position*/)
-					{
-
-					}
-				}
-			}
-		}
-	}
-
-	return SDL_APP_CONTINUE;
-}
-
-// ############################################################################
-// FRAME CALCULATION & MANAGEMENT
-// ############################################################################
-
-float getFPS(void *appstate)
-{
-	State* state = (State*) appstate;
-
-	return (state->frame.fps);
-}
-
-Uint64 getMSSinceLastFrame(void *appstate)
-{
-	State* state = (State*) appstate;
-	
-	return (SDL_GetTicks() - state->frame.lastFrameTick);
-}
-
-void calculateFPS(void *appstate)
-{
-	State* state = (State*) appstate;
-
-	// get time since last frame
-	float f = (float) (getMSSinceLastFrame(appstate));
-
-	// convert to seconds then invert to get fps
-	f = f / 1000;
-	f = 1 / f;
-
-	// record fps
-	state->frame.fps = f;
-
-	return;
-}
-
-// reset parameters used for frame calculations
-void resetFrameParameters(void *appstate)
-{
-	State* state = (State*) appstate;
-
-	state->frame.lastFrameTick = SDL_GetTicks();
-
-	return;
-}
-
-// check whether a new frame should be rendered as according to the FPS limit
-bool advanceFrame(void *appstate)
-{
-	State* state = (State*) appstate;
-	
-	bool advance = true;
-	
-	if (LIMIT_FPS)
-	{
-		(getMSSinceLastFrame(appstate) > state->frame.frameIntervalMS) ?
-			(advance = true) : (advance = false);
-	}
-
-	if (advance)
-	{		
-		calculateFPS(appstate);
-		resetFrameParameters(appstate);
-	}
-
-	return advance;
-}
-
-// ############################################################################
-// UPDATE & RENDER FUNCTIONS
-// ############################################################################
-
-void updateTxtTexture(void *appstate, int paragraph)
-{
-	State* state = (State*) appstate;
-
-	SDL_Color colour = {0xFF, 0xFF, 0xFF, SDL_ALPHA_OPAQUE};
-	const char* renderText = state->gState.txt.currentText[paragraph];
-	state->txtSurface = TTF_RenderText_Solid_Wrapped(state->font, renderText, 0, colour, TXT_RECT_W);
-
-	state->txtTexture[paragraph] = SDL_CreateTextureFromSurface(state->renderer, state->txtSurface);
-	SDL_SetTextureScaleMode(state->txtTexture[paragraph], SDL_SCALEMODE_LINEAR);;
-
-	return;
-}
-
-void update(void *appstate)
-{
-	State* state = (State*) appstate;
-
-	if (!(state->gState.textTextured))
-	{
-		for (int i = 0; i < state->gState.txt.paragraphs; i++)
-		{
-			updateTxtTexture(state, i);
-		}
-
-		state->gState.textTextured = true;
-	}
-	
-	return;
-}
-
-SDL_FRect generateFRect(RectType rt)
-{
-	SDL_FRect rect;
-	
-	switch (rt)
-	{
-		case LEFT:
-			rect.x = LEFT_RECT_X;
-			rect.y = LEFT_RECT_Y;
-			rect.w = LEFT_RECT_W;
-			rect.h = LEFT_RECT_H;
-			break;
-
-		case RIGHT:
-			rect.x = RIGHT_RECT_X;
-			rect.y = RIGHT_RECT_Y;
-			rect.w = RIGHT_RECT_W;
-			rect.h = RIGHT_RECT_H;
-			break;
-
-		case IMG:
-			rect.x = IMG_RECT_X;
-			rect.y = IMG_RECT_Y;
-			rect.w = IMG_RECT_W;
-			rect.h = IMG_RECT_H;
-			break;
-
-		case CHOICE:
-			rect.x = CHOICE_RECT_X;
-			rect.y = CHOICE_RECT_Y;
-			rect.w = CHOICE_RECT_W;
-			rect.h = CHOICE_RECT_H;
-			break;
-
-		case PLAYING_TXT:
-			rect.x = TXT_RECT_START_X;
-			rect.y = TXT_RECT_START_Y;
-			rect.w = TXT_RECT_W;
-			rect.h = TXT_RECT_H;
-			break;
-
-		case START_TXT:
-			rect.y = START_TXT_RECT_Y;
-			// width and height tbd later
-			break;
-
-		default:
-	}
-
-	return rect;
-}
-
-void renderStartScreen(void *appstate)
-{
-	State* state = (State*) appstate;
-
-	float w, h;
-	
-	// TODO: just render the logo and some text
-	// correct image should be loaded at this point
-	SDL_FRect rect = generateFRect(IMG);
-
-	// centre image first
-	rect.x = CENTRE_IMG_RECT_X;
-	rect.y = CENTRE_IMG_RECT_Y;
-
-	// render image
-	SDL_RenderTexture(state->renderer, state->imgTexture, NULL, &rect);
-
-	// place start text below image
-	rect.y = START_TXT_RECT_Y;
-
-	// load text
-	SDL_Color colour = {0xFF, 0xFF, 0xFF, SDL_ALPHA_OPAQUE};
-	state->txtSurface = TTF_RenderText_Solid(state->font, "Click to begin", 0, colour);
-	state->txtTexture[0] = SDL_CreateTextureFromSurface(state->renderer, state->txtSurface);
-
-	// centre text
-	SDL_GetTextureSize(state->txtTexture[0], &w, &h);
-	rect.w = w + BORDER_WIDTH;
-	rect.h = h;
-	rect.x = (WINDOW_WIDTH / 2) - (w / 2);
-
-	// render text
-	SDL_RenderTexture(state->renderer, state->txtTexture[0], NULL, &rect);
-
-	// now credits button
-	rect.y = BORDER_WIDTH;
-
-	// load text
-	state->txtSurface = TTF_RenderText_Solid(state->font, "Credits", 0, colour);
-	state->txtTexture[0] = SDL_CreateTextureFromSurface(state->renderer, state->txtSurface);
-
-	// centre text
-	SDL_GetTextureSize(state->txtTexture[0], &w, &h);
-	rect.x = (WINDOW_WIDTH / 2) - (w / 2);
-	rect.w = w;
-	rect.h = h;
-
-	// render text
-	SDL_RenderTexture(state->renderer, state->txtTexture[0], NULL, &rect);
-
-	return;
-}
-
-void renderDeathScreen(void *appstate)
-{
-	State* state = (State*) appstate;
-	
-	return;
-}
-
-void renderCreditsScreen(void* appstate)
-{
-	State* state = (State*) appstate;
-	
-	float w, h;
-
-	// build first rectangle
-	SDL_FRect rect;
-	rect.x = BORDER_WIDTH;
-	rect.y = BORDER_WIDTH;
-
-	// load text
-	if (!(state->gState.textLoaded))
-	{
-		readTextFromFiles(appstate, STANDARD);
-
-		state->gState.textLoaded = true;
-	}
-
-	// render
-	for (int i = 0; i < No_CREDITS_FILES; i++)
-	{
-		SDL_GetTextureSize(state->txtTexture[i], &w, &h);
-		rect.h = h;
-		rect.w = w;
-
-		SDL_RenderTexture(state->renderer, state->txtTexture[i], NULL, &rect);
-
-		rect.y = rect.y + rect.h + BORDER_WIDTH;
-	}
-
-	return;
-}
-
-void renderPlaying(void *appstate)
-{
-	State* state = (State*) appstate;
-	SDL_FRect rect;
-
-	// draw rectangles
-	// left rect first
-	rect = generateFRect(LEFT);
-	SDL_RenderRect(state->renderer, &rect);
-
-	// right rect second
-	rect = generateFRect(RIGHT);
-	SDL_RenderRect(state->renderer, &rect);
-
-	// img third
-	rect = generateFRect(IMG);
-	SDL_RenderTexture(state->renderer, state->imgTexture, NULL, &rect);
-	// SDL_Log("image rendered: %s", state->imgTexture);
-
-	// choice rect fourth
-	rect = generateFRect(CHOICE);
-	SDL_RenderRect(state->renderer, &rect);
-
-	// text fifth
-
-	// render story text
-	rect = generateFRect(PLAYING_TXT);
-
-	float w, h, y = rect.y;
-	for (int i = 0; i < state->gState.txt.paragraphs; i++)
-	{
-		SDL_GetTextureSize(state->txtTexture[i], &w, &h);
-		rect.h = h;
-		rect.w = w;
-
-		SDL_RenderTexture(state->renderer, state->txtTexture[i], NULL, &rect);
-
-		rect.y = rect.y + rect.h + BORDER_WIDTH;
-	}
-
-	return;
-}
-
-void render(void* appstate)
-{
-	State* state = (State*) appstate;
-
-	// clear screen
-	SDL_SetRenderDrawColor(state->renderer, 0x00, 0x00, 0x00, SDL_ALPHA_OPAQUE);
-	SDL_RenderClear(state->renderer);
-
-	// render scene
-	SDL_SetRenderDrawColor(state->renderer, 0xFF, 0xFF, 0xFF, SDL_ALPHA_OPAQUE);
-	
-	switch (state->gState.vState)
-	{
-		case START_MENU:
-			renderStartScreen(appstate);
-			break;
-
-		case PLAYING:
-			renderPlaying(appstate);
-			break;
-
-		case CREDITS:
-			renderCreditsScreen(appstate);
-			break;
-
-		case DEATH_SCREEN:
-			renderDeathScreen(appstate);
-			break;
-
-		default:
-			SDL_Log("Error");
-	}
-
-	SDL_RenderPresent(state->renderer);
-
-	return;
-}
-
-void updateAndRender(void *appstate)
-{
-	State* state = (State*) appstate;
-	
-	if (!(state->gState.textRendered))
-	{
-		readTextFromFiles(state, STANDARD);
-		loadImgFromFiles(state);
-		state->gState.textRendered = true;
-	}
-	
-	if (advanceFrame(appstate))
-	{
-		update(appstate);
-		render(appstate);
-	}
-
-	return;
-}
-
-// ################################################################################################
-// GAME LOGIC
-// ################################################################################################
-
-void determineBattleState(void *appstate)
-{
-	State* state = (State*) appstate;
-	
-	if (((state->gState.choice.flag == FALSE || state->gState.choice.flag == BLACK)
-		&& state->gState.choice.battleStrategy == CANNONS
-		&& state->gState.choice.powderRelocation == RELOCATE)
-		||
-		(state->gState.choice.flag == FALSE
-		&& (state->gState.choice.battleStrategy == CANNONS || state->gState.choice.battleStrategy == FIFTYFIFTY)
-		&& state->gState.choice.powderRelocation == DIRECT_RELOCATION)
-		||
-		(state->gState.choice.flag == BLACK
-		&& state->gState.choice.battleStrategy == BOARDING
-		&& state->gState.choice.powderRelocation == LEAVE_IT))
-	{
-		// only in those circumstances do you win
-		state->gState.bState == WINNING;
-	}
-	else
-	{
-		state->gState.bState == LOSING;
-	}
-
-	return;
-}
-
-void advanceStoryState(void *appstate)
-{
-	State* state = (State*) appstate;
-	
-	// advance game state to next stage
-	// also update player state accordingly to reflect current options
-	switch (state->gState.sState)
-	{
-		case CAP_1_OPENING:
-			state->gState.sState = CAP_2_ATTACK;
-			break;
-
-		case CAP_2_ATTACK:
-			state->gState.sState = CAP_3_CHOOSING_FLAG;
-			state->gState.pState = CHOOSING3;
-			break;
-
-		case CAP_3_CHOOSING_FLAG:
-			state->gState.sState = CAP_3_CHOOSING_DEFENCE;
-			state->gState.pState = CHOOSING3;
-			break;
-
-		case CAP_3_CHOOSING_DEFENCE:
-			state->gState.sState = END_CAPTAIN;
-			state->gState.pState = READING;
-			break;
-
-		case END_CAPTAIN:
-			state->gState.sState = SMITH_1_CHOOSING_CANNONS;
-			state->gState.pState = CHOOSING3;
-			break;
-
-		case SMITH_1_CHOOSING_CANNONS:
-			state->gState.sState = SMITH_2_CHOOSING_FIRE_REPAIRS;
-
-			// now is the time when the battle state is determined
-			determineBattleState(state);
-
-			if (state->gState.bState == LOSING)
-			{
-				state->gState.pState = CHOOSING2;
-			}
-			else if (state->gState.bState == WINNING)
-			{
-				state->gState.pState = CHOOSING3;
-			}
-
-			break;
-
-		case SMITH_2_CHOOSING_FIRE_REPAIRS:
-			state->gState.sState = SURGEON_1_WHO_WHERE_TREAT;
-			state->gState.pState = CHOOSING2;
-			break;
-
-		case SURGEON_1_WHO_WHERE_TREAT:
-			state->gState.sState = END_SURGEON;
-			state->gState.pState = READING;
-			break;
-
-		case END_SURGEON:
-			state->gState.sState = CAP_4_CHOOSING_DUEL;
-			state->gState.pState = CHOOSING3;
-			break;
-
-		case CAP_4_CHOOSING_DUEL:
-			state->gState.sState = CAP_5_DUEL;
-			state->gState.pState = READING;
-			break;
-
-		case CAP_5_DUEL:
-			state->gState.sState = CAP_6_VICTORY_PART_1;
-			break;
-
-		case CAP_6_VICTORY_PART_1:
-			state->gState.sState = CAP_6_VICTORY_PART_2;
-			break;
-
-		case CAP_6_VICTORY_PART_2:
-			state->gState.sState = CONCLUSION_PART_1;
-			break;
-
-		case CONCLUSION_PART_1:
-			state->gState.sState = CONCULSION_PART_2;
-			break;
-
-		default:		
-	}
-
-	return;
-}
-
-
 
 // ################################################################################################
 // INITIALISATION
@@ -1440,11 +976,21 @@ bool initVideo(State *state)
 	
 	// create window and renderer
 	// the 0 is in place of the window flags because none are being used
-	if (!SDL_CreateWindowAndRenderer("get windowed", WINDOW_WIDTH, WINDOW_HEIGHT, 0,
+	if (!SDL_CreateWindowAndRenderer("get windowed", WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE,
 		&(state->window), &(state->renderer)))
 	{
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
 			"Window/renderer creation failed: %s", SDL_GetError());
+
+		return false;
+	}
+
+	// set logical presentation to allow window to be resized
+	if (!SDL_SetRenderLogicalPresentation(state->renderer, WINDOW_WIDTH, WINDOW_HEIGHT,
+		SDL_LOGICAL_PRESENTATION_LETTERBOX))
+	{
+		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+			"Failed to set logical presentation: %s", SDL_GetError());
 
 		return false;
 	}
@@ -1469,6 +1015,1168 @@ bool initVideo(State *state)
 	SDL_Log("Video initialisation complete");
 
 	return true;
+}
+
+// ################################################################################################
+// GAME LOGIC
+// ################################################################################################
+
+void determineBattleState(void *appstate)
+{
+	State* state = (State*) appstate;
+	
+	if (((state->gState.choice.flag == FALSE || state->gState.choice.flag == BLACK)
+		&& state->gState.choice.battleStrategy == CANNONS
+		&& state->gState.choice.powderRelocation == RELOCATE)
+		||
+		(state->gState.choice.flag == FALSE
+		&& (state->gState.choice.battleStrategy == CANNONS || state->gState.choice.battleStrategy == FIFTYFIFTY)
+		&& state->gState.choice.powderRelocation == DIRECT_RELOCATION)
+		||
+		(state->gState.choice.flag == BLACK
+		&& state->gState.choice.battleStrategy == BOARDING
+		&& state->gState.choice.powderRelocation == LEAVE_IT))
+	{
+		// only in those circumstances do you win
+		state->gState.bState = WINNING;
+	}
+	else
+	{
+		state->gState.bState = LOSING;
+	}
+
+	return;
+}
+
+void determinePlayerRanking(void *appstate)
+{
+	State* state = (State*) appstate;
+
+	state->gState.rank = F;
+
+	// rank D requirements
+	if (state->gState.choice.treatQM != TREAT
+		|| state->gState.choice.cannonAngle == UP && state->gState.choice.surgeonPosition == ABOVE)
+	{
+		state->gState.rank = D;
+	}
+
+	// rank C requirements
+	if (state->gState.bState == WINNING)
+	{
+		if (state->gState.choice.cannonAngle != UP
+			|| state->gState.choice.surgeonPosition != ABOVE)
+		{
+			if (state->gState.choice.cannonAngle == DOWN)
+			{
+				state->gState.rank = C;
+			}
+		}
+	}
+
+	// rank B requirements
+	if (state->gState.bState == LOSING)
+	{
+		if (state->gState.choice.pumpRepair != PUMPS)
+		{
+			state->gState.rank = B;
+		}
+	}
+	
+	// rank S requriements
+	if (state->gState.choice.flag != RED)
+	{
+		if (state->gState.bState == WINNING)
+		{
+			if (state->gState.choice.cannonAngle != UP
+				|| state->gState.choice.surgeonPosition != ABOVE)
+			{
+				if (state->gState.choice.cannonAngle != DOWN)
+				{
+					state->gState.rank = S;
+				}
+			}
+		}
+		else if (state->gState.bState == LOSING)
+		{
+			if (state->gState.choice.pumpRepair == PUMPS)
+			{
+				if (state->gState.choice.treatQM == TREAT)
+				{
+					state->gState.rank = S;
+				}
+			}
+		}
+	}
+	else// rank A requirements
+	{
+		if (state->gState.bState == WINNING)
+		{
+			if (state->gState.choice.cannonAngle != UP
+				|| state->gState.choice.surgeonPosition != ABOVE)
+			{
+				if (state->gState.choice.cannonAngle != DOWN)
+				{
+					state->gState.rank = A;
+				}
+			}
+		}
+		else if (state->gState.bState == LOSING)
+		{
+			if (state->gState.choice.pumpRepair == PUMPS)
+			{
+				if (state->gState.choice.treatQM == TREAT)
+				{
+					state->gState.rank = A;
+				}
+			}
+		}
+	}
+
+	return;
+}
+
+void recordChoice(void *appstate, Range choice)
+{
+	State* state = (State*) appstate;
+
+	switch (state->gState.sState)
+	{
+		case CAP_3_CHOOSING_FLAG:
+			switch (choice)
+			{
+				case CHOICE_1_OF_3:
+					state->gState.choice.flag = FALSE;
+					break;
+
+				case CHOICE_2_OF_3:
+					state->gState.choice.flag = BLACK;
+					break;
+
+				case CHOICE_3_OF_3:
+					state->gState.choice.flag = RED;
+					break;
+
+				default:
+			}
+
+			break;
+
+		case CAP_3_CHOOSING_DEFENCE:
+			switch (choice)
+			{
+				case CHOICE_1_OF_3:
+					state->gState.choice.battleStrategy = BOARDING;
+					break;
+
+				case CHOICE_2_OF_3:
+					state->gState.choice.battleStrategy = CANNONS;
+					break;
+
+				case CHOICE_3_OF_3:
+					state->gState.choice.battleStrategy = FIFTYFIFTY;
+					break;
+
+				default:
+			}
+
+			break;
+
+		case SMITH_1_CHOOSING_CANNONS:
+			switch (choice)
+			{
+				case CHOICE_1_OF_3:
+					state->gState.choice.powderRelocation = RELOCATE;
+					break;
+
+				case CHOICE_2_OF_3:
+					state->gState.choice.powderRelocation = DIRECT_RELOCATION;
+					break;
+
+				case CHOICE_3_OF_3:
+					state->gState.choice.powderRelocation = LEAVE_IT;
+					break;
+
+				default:
+			}
+
+			break;
+
+		case SMITH_2_CHOOSING_FIRE_REPAIRS:
+			if (state->gState.bState == LOSING)
+			{
+				switch (choice)
+				{
+					case CHOICE_1_OF_2:
+						state->gState.choice.pumpRepair = PUMPS;
+						break;
+
+					case CHOICE_2_OF_2:
+						state->gState.choice.pumpRepair = IGNORE;
+						break;
+
+					default:
+				}
+			}
+			else if (state->gState.bState == WINNING)
+			{
+				switch (choice)
+				{
+					case CHOICE_1_OF_3:
+						state->gState.choice.cannonAngle = UP;
+						break;
+
+					case CHOICE_2_OF_3:
+						state->gState.choice.cannonAngle = DOWN;
+						break;
+
+					case CHOICE_3_OF_3:
+						state->gState.choice.cannonAngle = STRAIGHT;
+						break;
+
+					default:
+				}
+			}
+
+			break;
+
+		case SURGEON_1_WHO_WHERE_TREAT:
+			if (state->gState.bState == LOSING)
+			{
+				switch (choice)
+				{
+					case CHOICE_1_OF_2:
+						state->gState.choice.treatQM = TREAT;
+						break;
+
+					case CHOICE_2_OF_2:
+						state->gState.choice.treatQM = LEAVE_HIM_TO_DIE_LIKE_SOME_SORT_OF_MONSTER;
+						break;
+
+					default:
+				}
+			}
+			else if (state->gState.bState == WINNING)
+			{
+				switch (choice)
+				{
+					case CHOICE_1_OF_2:
+						state->gState.choice.surgeonPosition = ABOVE;
+						SDL_Log("get donw");
+						break;
+
+					case CHOICE_2_OF_2:
+						state->gState.choice.surgeonPosition = BELOW;
+						SDL_Log("up here");
+						break;
+
+					default:
+				}
+			}
+
+			break;
+
+		case CAP_4_CHOOSING_DUEL:
+			switch (choice)
+			{
+				case CHOICE_1_OF_3:
+					state->gState.choice.duel = SWORD;
+					break;
+
+				case CHOICE_2_OF_3:
+					state->gState.choice.duel = GUN;
+					break;
+
+				case CHOICE_3_OF_3:
+					state->gState.choice.duel = ESCAPE;
+
+				default:
+			}
+
+			break;
+
+		default:
+	}
+
+	return;
+}
+
+bool youDie(void *appstate)
+{
+	State* state = (State*) appstate;
+	
+	if (((state->gState.choice.duel == SWORD)
+		&& (state->gState.bState == LOSING
+			&& state->gState.choice.battleStrategy != BOARDING)
+		&& (state->gState.choice.cannonAngle != UP))
+		|| ((state->gState.choice.duel == SWORD)
+		&& (state->gState.bState == WINNING
+			&& state->gState.choice.battleStrategy != CANNONS)
+		&& (state->gState.choice.cannonAngle != UP))
+		|| ((state->gState.choice.duel == ESCAPE)
+		&& (state->gState.choice.cannonAngle == UP))
+		|| ((state->gState.choice.duel == ESCAPE)
+		&& (state->gState.choice.surgeonPosition != ABOVE)
+		&& (state->gState.bState == LOSING)
+		&& (state->gState.choice.battleStrategy != CANNONS))
+		|| ((state->gState.choice.duel == ESCAPE)
+		&& (state->gState.choice.surgeonPosition != ABOVE)
+		&& (state->gState.bState == WINNING)
+		&& (state->gState.choice.battleStrategy != BOARDING)))
+	{
+		return true;
+	}
+
+	return false;
+}
+
+void advanceStoryState(void *appstate)
+{
+	State* state = (State*) appstate;
+	
+	// advance game state to next stage
+	// also update player state accordingly to reflect current options
+	switch (state->gState.sState)
+	{
+		case DEAD:
+			state->gState.sState = CAP_1_OPENING;
+			state->gState.vState = START_MENU;
+		
+		case CAP_1_OPENING:
+			state->gState.sState = CAP_2_ATTACK;
+			break;
+
+		case CAP_2_ATTACK:
+			state->gState.sState = CAP_3_CHOOSING_FLAG;
+			state->gState.pState = CHOOSING3;
+			break;
+
+		case CAP_3_CHOOSING_FLAG:
+			state->gState.sState = CAP_3_CHOOSING_DEFENCE;
+			state->gState.pState = CHOOSING3;
+			break;
+
+		case CAP_3_CHOOSING_DEFENCE:
+			state->gState.sState = END_CAPTAIN;
+			state->gState.pState = READING;
+			break;
+
+		case END_CAPTAIN:
+			state->gState.sState = SMITH_1_CHOOSING_CANNONS;
+			state->gState.pState = CHOOSING3;
+			break;
+
+		case SMITH_1_CHOOSING_CANNONS:
+			state->gState.sState = SMITH_2_CHOOSING_FIRE_REPAIRS;
+
+			// now is the time when the battle state is determined
+			determineBattleState(appstate);
+
+			if (state->gState.bState == LOSING)
+			{
+				state->gState.pState = CHOOSING2;
+			}
+			else if (state->gState.bState == WINNING)
+			{
+				state->gState.pState = CHOOSING3;
+			}
+
+			break;
+
+		case SMITH_2_CHOOSING_FIRE_REPAIRS:
+			state->gState.sState = SURGEON_1_WHO_WHERE_TREAT;
+			state->gState.pState = CHOOSING2;
+			break;
+
+		case SURGEON_1_WHO_WHERE_TREAT:
+			state->gState.sState = END_SURGEON;
+			state->gState.pState = READING;
+			break;
+
+		case END_SURGEON:
+			state->gState.sState = CAP_4_CHOOSING_DUEL;
+			state->gState.pState = CHOOSING3;
+			break;
+
+		case CAP_4_CHOOSING_DUEL:
+			state->gState.sState = CAP_5_DUEL;
+			state->gState.pState = READING;
+			break;
+
+		case CAP_5_DUEL:
+			// this is the point where you could die
+			if (youDie(appstate))
+			{
+				state->gState.sState = DEAD;
+				state->gState.vState = DEATH_SCREEN;
+			}
+			else
+			{
+				state->gState.sState = CAP_6_VICTORY_PART_1;
+			}
+
+			break;
+
+		case CAP_6_VICTORY_PART_1:
+			state->gState.sState = CAP_6_VICTORY_PART_2;
+			break;
+
+		case CAP_6_VICTORY_PART_2:
+			state->gState.sState = CONCLUSION_PART_1;
+			break;
+
+		case CONCLUSION_PART_1:
+			state->gState.sState = CONCLUSION_PART_2;
+			break;
+
+		case CONCLUSION_PART_2:
+			state->gState.sState = RANKING;
+			state->gState.vState = RANK_SCREEN;
+			determinePlayerRanking(appstate);
+			break;
+
+		case RANKING:
+			state->gState.sState = CAP_1_OPENING;
+			state->gState.vState = START_MENU;
+			break;
+
+		default:		
+	}
+
+	return;
+}
+
+// ################################################################################################
+// GAME ENGINE
+// ################################################################################################
+
+// ############################################################################
+// INPUT
+// ############################################################################
+
+bool mouseInRange(void *appstate, Range range)
+{
+	State* state = (State*) appstate;
+	
+	bool inRange = false;
+	float x, y;
+	float xMin, xMax, yMin, yMax;
+	int windowW, windowH;
+
+	SDL_GetMouseState(&x, &y);
+
+	switch (range)
+	{
+		case CREDITS_BUTTON:
+			xMin = (WINDOW_WIDTH / 2) - (CREDITS_BUTTON_W / 2);
+			xMax = (WINDOW_WIDTH / 2) + (CREDITS_BUTTON_W / 2);
+			yMin = 0;
+			yMax = CREDITS_BUTTON_H;
+			break;
+
+		case CHOICE_1_OF_2:
+			xMin = CHOICE_1OF2_BUTTON_X;
+			xMax = CHOICE_1OF2_BUTTON_X + CHOICE_1OF2_BUTTON_W;
+			yMin = CHOICE_1OF2_BUTTON_Y;
+			yMax = CHOICE_1OF2_BUTTON_Y + CHOICE_1OF2_BUTTON_H;
+			break;
+
+		case CHOICE_2_OF_2:
+			xMin = CHOICE_2OF2_BUTTON_X;
+			xMax = CHOICE_2OF2_BUTTON_X + CHOICE_2OF2_BUTTON_W;
+			yMin = CHOICE_2OF2_BUTTON_Y;
+			yMax = CHOICE_2OF2_BUTTON_Y + CHOICE_2OF2_BUTTON_H;
+			break;
+
+		case CHOICE_1_OF_3:
+			xMin = CHOICE_1OF3_BUTTON_X;
+			xMax = CHOICE_1OF3_BUTTON_X + CHOICE_1OF3_BUTTON_W;
+			yMin = CHOICE_1OF3_BUTTON_Y;
+			yMax = CHOICE_1OF3_BUTTON_Y + CHOICE_1OF3_BUTTON_H;
+			break;
+
+		case CHOICE_2_OF_3:
+			xMin = CHOICE_2OF3_BUTTON_X;
+			xMax = CHOICE_2OF3_BUTTON_X + CHOICE_2OF3_BUTTON_W;
+			yMin = CHOICE_2OF3_BUTTON_Y;
+			yMax = CHOICE_2OF3_BUTTON_Y + CHOICE_2OF3_BUTTON_H;
+			break;
+
+		case CHOICE_3_OF_3:
+			xMin = CHOICE_3OF3_BUTTON_X;
+			xMax = CHOICE_3OF3_BUTTON_X + CHOICE_3OF3_BUTTON_W;
+			yMin = CHOICE_3OF3_BUTTON_Y;
+			yMax = CHOICE_3OF3_BUTTON_Y + CHOICE_3OF3_BUTTON_H;
+			break;
+
+		default:
+	}
+
+	// scale values so they match the current resolution if window was resized
+	SDL_GetWindowSize(state->window, &windowW, &windowH);
+	xMin = xMin * ((float) windowW) / WINDOW_WIDTH;
+	xMax = xMax * ((float) windowW) / WINDOW_WIDTH;
+	yMin = yMin * ((float) windowH) / WINDOW_HEIGHT;
+	yMax = yMax * ((float) windowH) / WINDOW_HEIGHT;
+
+	if ((x > xMin) && (x < xMax) && (y > yMin) && (y < yMax))
+	{
+		inRange = true;
+
+		// record choice if one was made
+		if (state->gState.pState == CHOOSING2 || state->gState.pState == CHOOSING3)
+		{
+			recordChoice(appstate, range);
+		}
+	}
+
+	return (inRange);
+}
+
+// handle inputs (mouse left click only)
+SDL_AppResult input(void *appstate, SDL_Event *event)
+{
+	State* state = (State*) appstate;
+	bool stateChange = false;
+	
+	if (event->type == SDL_EVENT_QUIT)// quit
+	{
+		return SDL_APP_SUCCESS;
+	}
+	else 
+	{
+		// if mouse press detected
+		if(event->type == SDL_EVENT_MOUSE_BUTTON_DOWN
+			&& event->button.button == SDL_BUTTON_LEFT)
+		{
+			switch (state->gState.vState)
+			{
+				case CREDITS:
+				case DEATH_SCREEN:
+				case RANK_SCREEN:
+					// reset game
+					initGameLogic(state);
+					stateChange = true;
+					break;
+
+				case START_MENU:
+					// start playing or go to credits
+					if (mouseInRange(appstate, CREDITS_BUTTON))
+					{
+						// go to credits
+						state->gState.vState = CREDITS;
+						stateChange = true;
+					}
+					else
+					{
+						state->gState.vState = PLAYING;
+						stateChange = true;
+					}
+					
+					break;
+
+				case PLAYING:
+					// check if choice available
+					switch (state->gState.pState)
+					{
+						case READING:
+							// advance story (no choice)
+							advanceStoryState(appstate);
+							stateChange = true;
+							break;
+
+						case CHOOSING2:
+							if (mouseInRange(appstate, CHOICE_1_OF_2))
+							{
+								recordChoice(appstate, CHOICE_1_OF_2);
+								advanceStoryState(appstate);
+								stateChange = true;
+							}
+							else if (mouseInRange(appstate, CHOICE_2_OF_2))
+							{
+								recordChoice(appstate, CHOICE_2_OF_2);
+								advanceStoryState(appstate);
+								stateChange = true;
+							}
+
+							break;
+
+						case CHOOSING3:
+							if (mouseInRange(appstate, CHOICE_1_OF_3))
+							{
+								recordChoice(appstate, CHOICE_1_OF_3);
+								advanceStoryState(appstate);
+								stateChange = true;
+							}
+							else if (mouseInRange(appstate, CHOICE_2_OF_3))
+							{
+								recordChoice(appstate, CHOICE_2_OF_2);
+								advanceStoryState(appstate);
+								stateChange = true;
+							}
+							else if (mouseInRange(appstate, CHOICE_3_OF_3))
+							{
+								recordChoice(appstate, CHOICE_3_OF_3);
+								advanceStoryState(appstate);
+								stateChange = true;
+							}
+					}
+					break;
+
+				default:
+			}
+
+			if (stateChange)
+			{
+				// need to reread from file if click detected
+				state->gState.textLoaded = false;
+				state->gState.textTextured = false;
+				state->gState.textRendered = false;
+				state->gState.sceneRendered = false;
+			}
+		}
+	}
+
+	return SDL_APP_CONTINUE;
+}
+
+// ############################################################################
+// FRAME CALCULATION & MANAGEMENT
+// ############################################################################
+
+float getFPS(void *appstate)
+{
+	State* state = (State*) appstate;
+
+	return (state->frame.fps);
+}
+
+Uint64 getMSSinceLastFrame(void *appstate)
+{
+	State* state = (State*) appstate;
+	
+	return (SDL_GetTicks() - state->frame.lastFrameTick);
+}
+
+void calculateFPS(void *appstate)
+{
+	State* state = (State*) appstate;
+
+	// get time since last frame
+	float f = (float) (getMSSinceLastFrame(appstate));
+
+	// convert to seconds then invert to get fps
+	f = f / 1000;
+	f = 1 / f;
+
+	// record fps
+	state->frame.fps = f;
+
+	return;
+}
+
+// reset parameters used for frame calculations
+void resetFrameParameters(void *appstate)
+{
+	State* state = (State*) appstate;
+
+	state->frame.lastFrameTick = SDL_GetTicks();
+
+	return;
+}
+
+// check whether a new frame should be rendered as according to the FPS limit
+bool advanceFrame(void *appstate)
+{
+	State* state = (State*) appstate;
+	
+	bool advance = true;
+	
+	if (LIMIT_FPS)
+	{
+		(getMSSinceLastFrame(appstate) > state->frame.frameIntervalMS) ?
+			(advance = true) : (advance = false);
+	}
+
+	if (advance)
+	{		
+		calculateFPS(appstate);
+		resetFrameParameters(appstate);
+	}
+
+	return advance;
+}
+
+// ############################################################################
+// UPDATE & RENDER FUNCTIONS
+// ############################################################################
+
+void updateTxtTexture(void *appstate, int paragraph, TextType type)
+{
+	State* state = (State*) appstate;
+
+	SDL_Color colour = {0xFF, 0xFF, 0xFF, SDL_ALPHA_OPAQUE};
+	const char* renderText;
+
+	// load text into surface and create texture from surface
+	if (type == STANDARD)
+	{
+		renderText = state->gState.txt.currentText[paragraph];
+		state->txtSurface = TTF_RenderText_Solid_Wrapped(state->font, renderText, 0, colour, TXT_RECT_W);
+
+		state->txtTexture[0][paragraph] = SDL_CreateTextureFromSurface(state->renderer, state->txtSurface);
+
+		SDL_SetTextureScaleMode(state->txtTexture[0][paragraph], SDL_SCALEMODE_LINEAR);
+	}
+	else if (type == CHOOSE)
+	{
+		renderText = state->gState.txt.choiceText[paragraph];
+		state->txtSurface = TTF_RenderText_Solid_Wrapped(state->font, renderText, 0, colour, TXT_RECT_W);
+
+		state->txtTexture[1][paragraph] = SDL_CreateTextureFromSurface(state->renderer, state->txtSurface);
+
+		SDL_SetTextureScaleMode(state->txtTexture[1][paragraph], SDL_SCALEMODE_LINEAR);
+	}
+
+	return;
+}
+
+void update(void *appstate)
+{
+	State* state = (State*) appstate;
+
+	// update textures if necessary
+	if (!(state->gState.textTextured))
+	{
+		// update story text textures
+		for (int i = 0; i < state->gState.txt.paragraphs; i++)
+		{
+			updateTxtTexture(appstate, i, STANDARD);
+		}
+
+		// update choice text textures
+		for (int i = 0; i < No_CHOICES_MAX; i++)
+		{
+			updateTxtTexture(appstate, i, CHOOSE);
+		}
+
+		state->gState.textTextured = true;
+	}
+	
+	return;
+}
+
+SDL_FRect generateFRect(RectType rt)
+{
+	SDL_FRect rect;
+	
+	switch (rt)
+	{
+		case LEFT:
+			rect.x = LEFT_RECT_X;
+			rect.y = LEFT_RECT_Y;
+			rect.w = LEFT_RECT_W;
+			rect.h = LEFT_RECT_H;
+			break;
+
+		case RIGHT:
+			rect.x = RIGHT_RECT_X;
+			rect.y = RIGHT_RECT_Y;
+			rect.w = RIGHT_RECT_W;
+			rect.h = RIGHT_RECT_H;
+			break;
+
+		case IMG:
+			rect.x = IMG_RECT_X;
+			rect.y = IMG_RECT_Y;
+			rect.w = IMG_RECT_W;
+			rect.h = IMG_RECT_H;
+			break;
+
+		case CHOICE:
+			rect.x = CHOICE_RECT_X;
+			rect.y = CHOICE_RECT_Y;
+			rect.w = CHOICE_RECT_W;
+			rect.h = CHOICE_RECT_H;
+			break;
+
+		case CHOICE1OF2:
+			rect.x = CHOICE_1OF2_BUTTON_X;
+			rect.y = CHOICE_1OF2_BUTTON_Y;
+			rect.w = CHOICE_1OF2_BUTTON_W;
+			rect.h = CHOICE_1OF2_BUTTON_H;
+			break;
+			
+		case CHOICE2OF2:
+			rect.x = CHOICE_2OF2_BUTTON_X;
+			rect.y = CHOICE_2OF2_BUTTON_Y;
+			rect.w = CHOICE_2OF2_BUTTON_W;
+			rect.h = CHOICE_2OF2_BUTTON_H;
+			break;
+
+		case CHOICE1OF3:
+			rect.x = CHOICE_1OF3_BUTTON_X;
+			rect.y = CHOICE_1OF3_BUTTON_Y;
+			rect.w = CHOICE_1OF3_BUTTON_W;
+			rect.h = CHOICE_1OF3_BUTTON_H;
+			break;
+
+		case CHOICE2OF3:
+			rect.x = CHOICE_2OF3_BUTTON_X;
+			rect.y = CHOICE_2OF3_BUTTON_Y;
+			rect.w = CHOICE_2OF3_BUTTON_W;
+			rect.h = CHOICE_2OF3_BUTTON_H;
+			break;
+
+		case CHOICE3OF3:
+			rect.x = CHOICE_3OF3_BUTTON_X;
+			rect.y = CHOICE_3OF3_BUTTON_Y;
+			rect.w = CHOICE_3OF3_BUTTON_W;
+			rect.h = CHOICE_3OF3_BUTTON_H;
+			break;
+
+		case PLAYING_TXT:
+			rect.x = TXT_RECT_START_X;
+			rect.y = TXT_RECT_START_Y;
+			rect.w = TXT_RECT_W;
+			rect.h = TXT_RECT_H;
+			break;
+
+		case START_TXT:
+			rect.y = START_TXT_RECT_Y;
+			// width and height tbd later
+			break;
+
+		default:
+	}
+
+	return rect;
+}
+
+void renderStartScreen(void *appstate)
+{
+	State* state = (State*) appstate;
+
+	float w, h;
+	
+	// TODO: just render the logo and some text
+	// correct image should be loaded at this point
+	SDL_FRect rect = generateFRect(IMG);
+
+	// centre image first
+	rect.x = CENTRE_IMG_RECT_X;
+	rect.y = CENTRE_IMG_RECT_Y;
+
+	// render image
+	SDL_RenderTexture(state->renderer, state->imgTexture, NULL, &rect);
+
+	// place start text below image
+	rect.y = START_TXT_RECT_Y;
+
+	// load text
+	SDL_Color colour = {0xFF, 0xFF, 0xFF, SDL_ALPHA_OPAQUE};
+	state->txtSurface = TTF_RenderText_Solid(state->font, "Click to begin", 0, colour);
+	state->txtTexture[0][0] = SDL_CreateTextureFromSurface(state->renderer, state->txtSurface);
+
+	// centre text
+	SDL_GetTextureSize(state->txtTexture[0][0], &w, &h);
+	rect.w = w + BORDER_WIDTH;
+	rect.h = h;
+	rect.x = (WINDOW_WIDTH / 2) - (w / 2);
+
+	// render text
+	SDL_RenderTexture(state->renderer, state->txtTexture[0][0], NULL, &rect);
+
+	// now credits button
+	rect.y = BORDER_WIDTH;
+
+	// load text
+	state->txtSurface = TTF_RenderText_Solid(state->font, "Credits", 0, colour);
+	state->txtTexture[0][0] = SDL_CreateTextureFromSurface(state->renderer, state->txtSurface);
+
+	// centre text
+	SDL_GetTextureSize(state->txtTexture[0][0], &w, &h);
+	rect.x = (WINDOW_WIDTH / 2) - (w / 2);
+	rect.w = w;
+	rect.h = h;
+
+	// render text
+	SDL_RenderTexture(state->renderer, state->txtTexture[0][0], NULL, &rect);
+
+	return;
+}
+
+void renderDeathScreen(void *appstate)
+{
+	State* state = (State*) appstate;
+
+	SDL_Color colour = {0xFF, 0xFF, 0xFF, SDL_ALPHA_OPAQUE};
+	SDL_FRect rect;
+	int windowW, windowH;
+
+	// just tell the dumbass player that he died
+	state->txtSurface = TTF_RenderText_Solid_Wrapped(state->font, "YOU DIED", 0, colour, TXT_RECT_W);
+	state->txtTexture[0][0] = SDL_CreateTextureFromSurface(state->renderer, state->txtSurface);
+
+	SDL_GetTextureSize(state->txtTexture[0][0], &(rect.w), &(rect.h));
+	
+	// centre text
+	SDL_GetWindowSize(state->window, &windowW, &windowH);
+
+	rect.x = (((float) windowW) / 2) - (rect.w / 2);
+	rect.y = (((float) windowH) / 2) - (rect.h / 2);
+
+	// render away
+	SDL_RenderTexture(state->renderer, state->txtTexture[0][0], NULL, &rect);
+	
+	return;
+}
+
+void renderCreditsScreen(void* appstate)
+{
+	State* state = (State*) appstate;
+	
+	float w, h;
+
+	// build first rectangle
+	SDL_FRect rect;
+	rect.x = BORDER_WIDTH;
+	rect.y = BORDER_WIDTH;
+
+	// load text
+	if (!(state->gState.textLoaded))
+	{
+		readTextFromFiles(appstate, STANDARD);
+
+		state->gState.textLoaded = true;
+	}
+
+	// render
+	for (int i = 0; i < No_CREDITS_FILES; i++)
+	{
+		SDL_GetTextureSize(state->txtTexture[0][i], &w, &h);
+		rect.h = h;
+		rect.w = w;
+
+		SDL_RenderTexture(state->renderer, state->txtTexture[0][i], NULL, &rect);
+
+		rect.y = rect.y + rect.h + BORDER_WIDTH;
+	}
+
+	return;
+}
+
+void renderChoice(void *appstate, Range range, SDL_FRect boxRect)
+{
+	State* state = (State*) appstate;
+	
+	SDL_Texture* texture[2];
+	SDL_FRect rect;
+	float x, y, w, h;
+	
+	// determine which text to render
+	switch (range)
+	{
+		case CHOICE_1_OF_2:
+			texture[0] = state->txtTexture[1][0];
+			texture[1] = state->txtTexture[1][1];
+			break;
+
+		case CHOICE_2_OF_2:
+			rect = generateFRect(CHOICE2OF2);
+			texture[0] = state->txtTexture[1][2];
+			texture[1] = state->txtTexture[1][3];
+			break;
+
+		case CHOICE_1_OF_3:
+			rect = generateFRect(CHOICE1OF3);
+			texture[0] = state->txtTexture[1][0];
+			texture[1] = state->txtTexture[1][1];
+			break;
+
+		case CHOICE_2_OF_3:
+			rect = generateFRect(CHOICE2OF3);
+			texture[0] = state->txtTexture[1][2];
+			texture[1] = state->txtTexture[1][3];
+			break;
+
+		case CHOICE_3_OF_3:
+			rect = generateFRect(CHOICE3OF3);
+			texture[0] = state->txtTexture[1][4];
+			texture[1] = state->txtTexture[1][5];
+			break;
+
+		default:
+	}
+
+	// render rectangle around text
+	SDL_RenderRect(state->renderer, &boxRect);
+
+	// resize rect to text size to prevent stretching
+	SDL_GetTextureSize(texture[0], &w, &h);
+
+	// align text in centre of box
+	rect.x = boxRect.x + ((boxRect.w / 2) - (w / 2));
+	rect.y = boxRect.y + ((boxRect.h / 3) - (h / 3));
+	rect.w = w;
+	rect.h = h;
+
+	// do the same for the bottom text
+	SDL_RenderTexture(state->renderer, texture[0], NULL, &rect);
+
+	SDL_GetTextureSize(texture[1], &w, &h);
+
+	rect.x = boxRect.x + ((boxRect.w / 2) - (w / 2));
+	rect.y = boxRect.y + (2 * ((boxRect.h / 3) - (h / 3)));
+	rect.w = w;
+	rect.h = h;
+
+	SDL_RenderTexture(state->renderer, texture[1], NULL, &rect);
+
+	return;
+}
+
+void renderPlaying(void *appstate)
+{
+	State* state = (State*) appstate;
+	SDL_FRect rect;
+	float x, y, w, h;
+
+	// draw rectangles
+	// left rect first
+	rect = generateFRect(LEFT);
+	SDL_RenderRect(state->renderer, &rect);
+
+	// right rect second
+	rect = generateFRect(RIGHT);
+	SDL_RenderRect(state->renderer, &rect);
+
+	// render image  third
+	rect = generateFRect(IMG);
+	SDL_RenderTexture(state->renderer, state->imgTexture, NULL, &rect);
+
+	// then render options if need be
+	if (state->gState.pState == CHOOSING2 || state->gState.pState == CHOOSING3)
+	{
+		// first render one big rectangle around choices
+		rect = generateFRect(CHOICE);
+		SDL_RenderRect(state->renderer, &rect);
+
+		// next render a rectangle around each option then render the text itself
+		if (state->gState.pState == CHOOSING2)
+		{
+			// choice 1
+			rect = generateFRect(CHOICE1OF2);
+			renderChoice(appstate, CHOICE_1_OF_2, rect);
+
+			// choice 2
+			rect = generateFRect(CHOICE2OF2);
+			renderChoice(appstate, CHOICE_2_OF_2, rect);
+		}
+		else if (state->gState.pState == CHOOSING3)
+		{
+			// choice 1
+			rect = generateFRect(CHOICE1OF3);
+			renderChoice(appstate, CHOICE_1_OF_3, rect);
+
+			// choice 2
+			rect = generateFRect(CHOICE2OF3);
+			renderChoice(appstate, CHOICE_2_OF_3, rect);
+
+			// choice 1
+			rect = generateFRect(CHOICE3OF3);
+			renderChoice(appstate, CHOICE_3_OF_3, rect);
+		}
+	}
+
+	// render story text
+	rect = generateFRect(PLAYING_TXT);
+
+	for (int i = 0; i < state->gState.txt.paragraphs; i++)
+	{
+		// resize text rect so it doesn't stretch the text
+		SDL_GetTextureSize(state->txtTexture[0][i], &w, &h);
+		rect.h = h;
+		rect.w = w;
+
+		SDL_RenderTexture(state->renderer, state->txtTexture[0][i], NULL, &rect);
+
+		// lower next rect so text doesn't overlap
+		rect.y = rect.y + rect.h + BORDER_WIDTH;
+	}
+
+	return;
+}
+
+void renderRankScreen(void *appstate)
+{
+	// TODO: show rank to the dumbass player
+
+	return;
+}
+
+void render(void* appstate)
+{
+	State* state = (State*) appstate;
+
+	// clear screen
+	SDL_SetRenderDrawColor(state->renderer, 0x00, 0x00, 0x00, SDL_ALPHA_OPAQUE);
+	SDL_RenderClear(state->renderer);
+
+	// render scene
+	SDL_SetRenderDrawColor(state->renderer, 0xFF, 0xFF, 0xFF, SDL_ALPHA_OPAQUE);
+	
+	switch (state->gState.vState)
+	{
+		case START_MENU:
+			renderStartScreen(appstate);
+			break;
+
+		case PLAYING:
+			renderPlaying(appstate);
+			break;
+
+		case CREDITS:
+			renderCreditsScreen(appstate);
+			break;
+
+		case DEATH_SCREEN:
+			renderDeathScreen(appstate);
+			break;
+
+		case RANK_SCREEN:
+			renderRankScreen(appstate);
+			break;
+
+		default:
+			SDL_Log("Error");
+	}
+
+	SDL_RenderPresent(state->renderer);
+
+	return;
+}
+
+void updateAndRender(void *appstate)
+{
+	State* state = (State*) appstate;
+	
+	// load files if not done yet
+	if (!(state->gState.textRendered))
+	{
+		readTextFromFiles(state, STANDARD);
+		readTextFromFiles(state, CHOOSE);
+		loadImgFromFiles(state);
+		state->gState.textRendered = true;
+	}
+	
+	if (advanceFrame(appstate))
+	{
+		update(appstate);
+		render(appstate);
+	}
+
+	return;
 }
 
 // ################################################################################################
@@ -1508,7 +2216,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 {
 	State* state = (State*) appstate;
 	
-	input(appstate);
 	updateAndRender(appstate);
 
 	return SDL_APP_CONTINUE;
@@ -1528,9 +2235,12 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
 	SDL_DestroySurface(state->txtSurface);	
 	SDL_DestroyTexture(state->imgTexture);
 	
-	for (int i = 0; i < 10; i++)
+	for (int i = 0; i < 2; i++)
 	{
-	SDL_DestroyTexture(state->txtTexture[i]);
+		for (int j = 0; j < 10; j++)
+		{
+			SDL_DestroyTexture(state->txtTexture[i][j]);
+		}
 	}
 
 	SDL_DestroyRenderer(state->renderer);
