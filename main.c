@@ -781,8 +781,6 @@ void readTextFromFiles(void *appstate, TextType type)
 	}
 	while (fileFound);
 
-	SDL_Log("File reading complete");
-
 	return;
 }
 
@@ -1262,12 +1260,10 @@ void recordChoice(void *appstate, Range choice)
 				{
 					case CHOICE_1_OF_2:
 						state->gState.choice.surgeonPosition = ABOVE;
-						SDL_Log("get donw");
 						break;
 
 					case CHOICE_2_OF_2:
 						state->gState.choice.surgeonPosition = BELOW;
-						SDL_Log("up here");
 						break;
 
 					default:
@@ -1915,7 +1911,7 @@ void renderDeathScreen(void *appstate)
 	int windowW, windowH;
 
 	// just tell the dumbass player that he died
-	state->txtSurface = TTF_RenderText_Solid_Wrapped(state->font, "YOU DIED", 0, colour, TXT_RECT_W);
+	state->txtSurface = TTF_RenderText_Solid(state->font, "YOU DIED", 0, colour);
 	state->txtTexture[0][0] = SDL_CreateTextureFromSurface(state->renderer, state->txtSurface);
 
 	SDL_GetTextureSize(state->txtTexture[0][0], &(rect.w), &(rect.h));
@@ -1928,6 +1924,21 @@ void renderDeathScreen(void *appstate)
 
 	// render away
 	SDL_RenderTexture(state->renderer, state->txtTexture[0][0], NULL, &rect);
+
+	// also display "click to return to start screen"
+	state->txtSurface = TTF_RenderText_Solid(state->font, "Click to continue to start screen", 0, colour);
+	state->txtTexture[0][1] = SDL_CreateTextureFromSurface(state->renderer, state->txtSurface);
+
+	SDL_GetTextureSize(state->txtTexture[0][1], &(rect.w), &(rect.h));
+	
+	// centre text
+	SDL_GetWindowSize(state->window, &windowW, &windowH);
+
+	rect.x = (((float) windowW) / 2) - (rect.w / 2);
+	rect.y = 2 * (((float) windowH) / 3) - (rect.h / 2);
+
+	// render again
+	SDL_RenderTexture(state->renderer, state->txtTexture[0][1], NULL, &rect);
 	
 	return;
 }
@@ -2017,7 +2028,7 @@ void renderChoice(void *appstate, Range range, SDL_FRect boxRect)
 
 	// align text in centre of box
 	rect.x = boxRect.x + ((boxRect.w / 2) - (w / 2));
-	rect.y = boxRect.y + ((boxRect.h / 3) - (h / 3));
+	rect.y = boxRect.y + ((boxRect.h / 3) - (h / 2));
 	rect.w = w;
 	rect.h = h;
 
@@ -2027,7 +2038,7 @@ void renderChoice(void *appstate, Range range, SDL_FRect boxRect)
 	SDL_GetTextureSize(texture[1], &w, &h);
 
 	rect.x = boxRect.x + ((boxRect.w / 2) - (w / 2));
-	rect.y = boxRect.y + (2 * ((boxRect.h / 3) - (h / 3)));
+	rect.y = boxRect.y + (2 * ((boxRect.h / 3) - (h / 2)));
 	rect.w = w;
 	rect.h = h;
 
@@ -2110,8 +2121,77 @@ void renderPlaying(void *appstate)
 
 void renderRankScreen(void *appstate)
 {
-	// TODO: show rank to the dumbass player
+	State* state = (State*) appstate;
 
+	SDL_Color colour = {0xFF, 0xFF, 0xFF, SDL_ALPHA_OPAQUE};
+	SDL_FRect rect;
+	int windowW, windowH;
+	char rankText[15];
+
+	strcpy(rankText, "Your rank: ");
+
+	// figure out rank
+	switch (state->gState.rank)
+	{
+		case S:
+			strcat(rankText, "S");
+			break;
+
+		case A:
+			strcat(rankText, "A");
+			break;
+
+		case B:
+			strcat(rankText, "B");
+			break;
+
+		case C:
+			strcat(rankText, "C");
+			break;
+
+		case D:
+			strcat(rankText, "D");
+			break;
+
+		case F:
+			strcat(rankText, "F");
+			break;
+
+		default:
+			strcat(rankText, "ERROR");
+	}
+
+
+	// create rank texture
+	state->txtSurface = TTF_RenderText_Solid(state->font, rankText, 0, colour);
+	state->txtTexture[0][0] = SDL_CreateTextureFromSurface(state->renderer, state->txtSurface);
+
+	SDL_GetTextureSize(state->txtTexture[0][0], &(rect.w), &(rect.h));
+	
+	// centre text
+	SDL_GetWindowSize(state->window, &windowW, &windowH);
+
+	rect.x = (((float) windowW) / 2) - (rect.w / 2);
+	rect.y = (((float) windowH) / 3) - (rect.h / 2);
+
+	// render the thing
+	SDL_RenderTexture(state->renderer, state->txtTexture[0][0], NULL, &rect);
+
+	// also display "click to return to start screen"
+	state->txtSurface = TTF_RenderText_Solid(state->font, "Click to continue to start screen", 0, colour);
+	state->txtTexture[0][0] = SDL_CreateTextureFromSurface(state->renderer, state->txtSurface);
+
+	SDL_GetTextureSize(state->txtTexture[0][0], &(rect.w), &(rect.h));
+	
+	// centre text
+	SDL_GetWindowSize(state->window, &windowW, &windowH);
+
+	rect.x = (((float) windowW) / 2) - (rect.w / 2);
+	rect.y = 2 * (((float) windowH) / 3) - (rect.h / 2);
+
+	// render away
+	SDL_RenderTexture(state->renderer, state->txtTexture[0][0], NULL, &rect);
+	
 	return;
 }
 
