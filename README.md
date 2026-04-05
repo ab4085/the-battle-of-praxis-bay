@@ -9,6 +9,6 @@ To compile using gcc, navigate to the game's directory and run the following com
 gcc main.c -o game.exe -I .\sdlbits\sdl3\include -I .\sdlbits\sdl3_ttf\include\ -L .\sdlbits\sdl3\lib -L .\sdlbits\sdl3_ttf\lib\ -l SDL3_ttf -l SDL3
 ```
 
-Then to run the game, run the 'game.exe' file.
+Then to run the game, run the `game.exe` file.
 
 Abdullah Bouteldja (ab4085@hw.ac.uk)
