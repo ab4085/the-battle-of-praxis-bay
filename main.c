@@ -98,9 +98,9 @@
 #define IMG_1_LOC "./img/captn1ship.bmp"
 #define IMG_2_LOC "./img/captn2vignette.bmp"
 #define IMG_3_LOC "./img/captn3flags.bmp"
-#define IMG_4_LOC "./img/catpn4boarding.bmp"
+#define IMG_4_LOC "./img/captn4boarding.bmp"
 #define IMG_5_LOC "./img/captn5birdseye.bmp"
-#define IMG_6_LOC "./smith6powder.bmp"
+#define IMG_6_LOC "./img/smith6powder.bmp"
 #define IMG_7_WIN_LOC "./img/smith7cannons.bmp"
 #define IMG_7_LOSE_LOC "./img/smith7pumps.bmp"
 #define IMG_8_LOC "./img/surgn8operatingtable.bmp"
@@ -332,6 +332,10 @@ typedef struct
 	Duel duel;
 }
 Choice;
+
+// ########################################################
+// MAIN GAME STRUCT
+// ########################################################
 
 // to hold current story text
 typedef struct
@@ -921,25 +925,27 @@ bool initFrameParameters(State* state)
 
 bool initStructs(State *state)
 {
-	SDL_Log("Initialising structs...");
+	// SDL_Log("Initialising structs...");
 
 	initFrameParameters(state);
 	initGameLogic(state);
 
-	SDL_Log("Struct initialisation complete");
+	// SDL_Log("Struct initialisation complete");
 
 	return true;
 }
 
 bool initFont(State *state)
 {
-	SDL_Log("Initialising font...");
+	// SDL_Log("Initialising font...");
 	
 	// initialise ttf library
 	if (!TTF_Init())
 	{
-		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+		/*
+		SDL_LogError(SDL_Log_CATEGORY_APPLICATION,
 			"TTF intialisation failed: %s", SDL_GetError());
+		*/
 
 		return false;
 	}
@@ -948,37 +954,43 @@ bool initFont(State *state)
 
 	if (state->font == NULL)
 	{
-		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+		/*
+		SDL_LogError(SDL_Log_CATEGORY_APPLICATION,
 			"Failed to load font: %s", SDL_GetError());
+		*/
 
 		return false;
 	}
 
-	SDL_Log("Font initialisation complete");
+	// SDL_Log("Font initialisation complete");
 
 	return true;
 }
 
 bool initVideo(State *state)
 {
-	SDL_Log("Initialising video...");
+	// SDL_Log("Initialising video...");
 	
 	// initialise video
 	if (!SDL_Init(SDL_INIT_VIDEO))
 	{
-		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+		/*
+		SDL_LogError(SDL_Log_CATEGORY_APPLICATION,
 			"Video intialisation failed: %s", SDL_GetError());
+		*/
 
 		return false;
 	}
 	
 	// create window and renderer
 	// the 0 is in place of the window flags because none are being used
-	if (!SDL_CreateWindowAndRenderer("get windowed", WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE,
+	if (!SDL_CreateWindowAndRenderer("The Battle of Praxis Bay", WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE,
 		&(state->window), &(state->renderer)))
 	{
-		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+		/*
+		SDL_LogError(SDL_Log_CATEGORY_APPLICATION,
 			"Window/renderer creation failed: %s", SDL_GetError());
+		*/
 
 		return false;
 	}
@@ -987,30 +999,35 @@ bool initVideo(State *state)
 	if (!SDL_SetRenderLogicalPresentation(state->renderer, WINDOW_WIDTH, WINDOW_HEIGHT,
 		SDL_LOGICAL_PRESENTATION_LETTERBOX))
 	{
-		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+		/*
+		SDL_LogError(SDL_Log_CATEGORY_APPLICATION,
 			"Failed to set logical presentation: %s", SDL_GetError());
+		*/
 
 		return false;
 	}
 
 	// print available render drivers
-	SDL_Log("Available renderer drivers:");
+	// SDL_Log("Available renderer drivers:");
 	for (int i = 0; i < SDL_GetNumRenderDrivers(); i++)
 	{
-		    SDL_Log("%d. %s", i + 1, SDL_GetRenderDriver(i));
+		    // SDL_Log("%d. %s", i + 1, SDL_GetRenderDriver(i));
 	}
 
 	// set window icon
 	SDL_Surface* icon = SDL_LoadBMP(ICON_LOC);
 	if (!SDL_SetWindowIcon(state->window, icon))
 	{
-		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+		/*
+		SDL_LogError(SDL_Log_CATEGORY_APPLICATION,
 			"Error setting window icon: %s", SDL_GetError());
+		*/
+	
 		return false;
 	}
 	SDL_DestroySurface(icon);
 
-	SDL_Log("Video initialisation complete");
+	// SDL_Log("Video initialisation complete");
 
 	return true;
 }
@@ -1704,7 +1721,7 @@ bool advanceFrame(void *appstate)
 }
 
 // ############################################################################
-// UPDATE & RENDER FUNCTIONS
+// UPDATE & RENDER
 // ############################################################################
 
 void updateTxtTexture(void *appstate, int paragraph, TextType type)
@@ -1948,6 +1965,8 @@ void renderCreditsScreen(void* appstate)
 	State* state = (State*) appstate;
 	
 	float w, h;
+	int windW, windH;
+	SDL_GetWindowSize(state->window, &windW, &windH);
 
 	// build first rectangle
 	SDL_FRect rect;
@@ -1962,6 +1981,8 @@ void renderCreditsScreen(void* appstate)
 		state->gState.textLoaded = true;
 	}
 
+	SDL_Log(state->gState.txt.currentText[0]);
+
 	// render
 	for (int i = 0; i < No_CREDITS_FILES; i++)
 	{
@@ -1970,7 +1991,7 @@ void renderCreditsScreen(void* appstate)
 		rect.w = w;
 
 		SDL_RenderTexture(state->renderer, state->txtTexture[0][i], NULL, &rect);
-
+	
 		rect.y = rect.y + rect.h + BORDER_WIDTH;
 	}
 
@@ -2229,7 +2250,7 @@ void render(void* appstate)
 			break;
 
 		default:
-			SDL_Log("Error");
+			// SDL_Log("Error");
 	}
 
 	SDL_RenderPresent(state->renderer);
@@ -2282,7 +2303,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 
 	*appstate = &state;
 
-	SDL_Log("Initialisation complete");
+	// SDL_Log("Initialisation complete");
 
 	return SDL_APP_CONTINUE;
 }
